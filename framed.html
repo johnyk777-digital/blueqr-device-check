@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Device check, framed</title>
+<style>
+  body { margin:0; font:16px/1.45 -apple-system, system-ui, sans-serif; background:#f3f4f6; color:#111827; }
+  @media (prefers-color-scheme: dark) { body { background:#0b1020; color:#f3f4f6; } }
+  header { padding:12px 16px; font-size:14px; }
+  iframe { display:block; width:100%; height:calc(100vh - 48px); border:0; }
+</style>
+</head>
+<body>
+  <header>A pretend client page. The check below runs inside a frame, the way the sign-in widget does.</header>
+  <iframe src="index.html" title="Device check" allow="clipboard-write"></iframe>
+</body>
+</html>

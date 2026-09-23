@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blue Scan device check</title>
+<style>
+  :root { --bg:#ffffff; --fg:#111827; --muted:#6b7280; --line:#e5e7eb; --accent:#1d4ed8; --ok:#047857; --warn:#b45309; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0b1020; --fg:#f3f4f6; --muted:#9ca3af; --line:#1f2937; --accent:#60a5fa; --ok:#34d399; --warn:#fbbf24; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.45 -apple-system, system-ui, sans-serif; }
+  main { max-width:520px; margin:0 auto; padding:16px; }
+  h1 { font-size:20px; margin:4px 0 4px; }
+  p.small { color:var(--muted); font-size:14px; margin:4px 0 12px; }
+  section { border:1px solid var(--line); border-radius:12px; padding:14px; margin:12px 0; }
+  .q { display:flex; gap:8px; flex-wrap:wrap; margin:8px 0 12px; }
+  button { font:inherit; padding:12px 14px; border-radius:10px; border:1px solid var(--line); background:transparent; color:var(--fg); }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  input[type=email] { width:100%; font-size:16px; padding:12px; border-radius:10px; border:1px solid var(--line); background:transparent; color:var(--fg); }
+  input:-webkit-autofill { animation-name: onAutoFillStart; animation-duration: 1ms; }
+  @keyframes onAutoFillStart { from {} to {} }
+  #pending { margin-top:10px; font-size:14px; }
+  #log { white-space:pre-wrap; font:12px/1.4 ui-monospace, Menlo, monospace; background:rgba(127,127,127,.08); padding:10px; border-radius:8px; max-height:40vh; overflow:auto; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; }
+  .ok { color:var(--ok); } .warn { color:var(--warn); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Blue Scan device check</h1>
+  <p class="small">Test page for slice 2 (dependency 7). Nothing you type leaves this phone. Follow the script, then tap <b>Copy results</b>.</p>
+
+  <section>
+    <b>1. Pick one</b>
+    <p class="small">Tap an answer. The email field below should get focus and the keyboard, with your email suggested, without another tap.</p>
+    <div class="q">
+      <button type="button" class="answer" data-a="Reading">Reading</button>
+      <button type="button" class="answer" data-a="Gifts">Gifts</button>
+      <button type="button" class="answer" data-a="Events">Events</button>
+    </div>
+    <form id="f" autocomplete="on" onsubmit="return false">
+      <label for="email" class="small">Email</label>
+      <input id="email" name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false">
+    </form>
+    <div id="pending"></div>
+  </section>
+
+  <section>
+    <b>2. What did you see?</b>
+    <p class="small">Answer after each run; these go into the results.</p>
+    <div class="row">
+      <button type="button" data-obs="keyboard-yes">Keyboard opened by itself</button>
+      <button type="button" data-obs="keyboard-no">Had to tap the field</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button type="button" data-obs="suggestion-yes">Email suggestion shown</button>
+      <button type="button" data-obs="suggestion-no">No suggestion</button>
+      <button type="button" data-obs="hme-first">Hide My Email listed first</button>
+      <button type="button" data-obs="hme-after">Hide My Email after my email</button>
+    </div>
+  </section>
+
+  <section>
+    <div class="row">
+      <button type="button" class="primary" id="copy">Copy results</button>
+      <button type="button" id="reset">Reset for next run</button>
+    </div>
+    <div id="log" aria-live="polite"></div>
+  </section>
+</main>
+<script>
+(function () {
+  var t0 = performance.now();
+  var run = 1, keydowns = 0, tapAt = null, autofillSeen = false, timer = null;
+  var logEl = document.getElementById('log');
+  var email = document.getElementById('email');
+  var pending = document.getElementById('pending');
+  var lines = [];
+  function ms() { return Math.round(performance.now() - t0); }
+  function log(s) { var l = '[run ' + run + ' +' + ms() + 'ms] ' + s; lines.push(l); logEl.textContent = lines.join('\n'); logEl.scrollTop = 1e9; }
+  function vv() { return window.visualViewport ? Math.round(window.visualViewport.height) : null; }
+  var embedded = (function () { try { return window.self !== window.top; } catch (e) { return true; } })();
+  log('ua=' + navigator.userAgent);
+  log('placement=' + (embedded ? 'inside a frame (widget-like)' : 'top-level page (hosted)') + ' viewport=' + vv());
+
+  document.querySelectorAll('.answer').forEach(function (b) {
+    b.addEventListener('click', function () {
+      tapAt = performance.now();
+      var before = vv();
+      email.focus();
+      log('answer "' + b.dataset.a + '" tapped; focus() called in the tap; activeElement=' + (document.activeElement === email ? 'email field' : String(document.activeElement && document.activeElement.tagName)));
+      setTimeout(function () { log('viewport ' + before + ' -> ' + vv() + ' 600ms after tap (a drop suggests the keyboard opened)'); }, 600);
+    });
+  });
+  email.addEventListener('focus', function () { log('email focus'); });
+  email.addEventListener('keydown', function () { keydowns++; });
+  function autofilled(how) {
+    if (autofillSeen) return;
+    autofillSeen = true;
+    var since = tapAt ? Math.round(performance.now() - tapAt) + 'ms after the answer tap' : 'no answer tap';
+    log('AUTOFILL detected (' + how + '), value length ' + email.value.length + ', keys typed ' + keydowns + ', ' + since);
+    pending.innerHTML = 'Filled: <b></b> &nbsp; <button type="button" id="edit">Not you? Edit</button><div class="small">Would submit in 500 ms unless you tap Edit.</div>';
+    pending.querySelector('b').textContent = email.value;
+    document.getElementById('edit').addEventListener('click', function () { clearTimeout(timer); log('Edit tapped: pending cancelled'); pending.textContent = ''; autofillSeen = false; email.select(); });
+    timer = setTimeout(function () { log('pending window ended: WOULD SUBMIT (no gesture)'); pending.innerHTML += '<div class="ok">Would submit now.</div>'; }, 500);
+  }
+  email.addEventListener('animationstart', function (e) { if (e.animationName === 'onAutoFillStart') autofilled('-webkit-autofill style'); });
+  email.addEventListener('input', function (e) {
+    log('input event inputType=' + (e.inputType || '(none)') + ' length=' + email.value.length + ' keys=' + keydowns);
+    if (e.inputType === 'insertReplacementText' || !e.inputType || (keydowns === 0 && email.value.length > 3)) autofilled('input ' + (e.inputType || 'no inputType'));
+  });
+  email.addEventListener('change', function () { log('change event length=' + email.value.length); });
+  document.querySelectorAll('[data-obs]').forEach(function (b) { b.addEventListener('click', function () { log('OBSERVED: ' + b.dataset.obs); }); });
+  document.getElementById('reset').addEventListener('click', function () {
+    clearTimeout(timer); email.value = ''; email.blur(); pending.textContent = '';
+    keydowns = 0; tapAt = null; autofillSeen = false; run++; log('--- reset ---');
+  });
+  document.getElementById('copy').addEventListener('click', function () {
+    var text = lines.join('\n');
+    function done(ok) { log(ok ? 'results copied' : 'copy failed: select the log and copy by hand'); }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(false); });
+    else done(false);
+  });
+})();
+</script>
+</body>
+</html>
