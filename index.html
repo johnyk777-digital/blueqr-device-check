@@ -101,19 +101,25 @@
     log('AUTOFILL detected (' + how + '), value length ' + email.value.length + ', keys typed ' + keydowns + ', ' + since);
     pending.innerHTML = 'Filled: <b></b> &nbsp; <button type="button" id="edit">Not you? Edit</button><div class="small">Would submit in 500 ms unless you tap Edit.</div>';
     pending.querySelector('b').textContent = email.value;
-    document.getElementById('edit').addEventListener('click', function () { clearTimeout(timer); log('Edit tapped: pending cancelled'); pending.textContent = ''; autofillSeen = false; email.select(); });
+    document.getElementById('edit').addEventListener('click', function () { clearTimeout(timer); log('Edit tapped: pending cancelled'); pending.textContent = ''; autofillSeen = false; keysAtLastInput = keydowns; lenAtLastInput = email.value.length; email.select(); });
     timer = setTimeout(function () { log('pending window ended: WOULD SUBMIT (no gesture)'); pending.innerHTML += '<div class="ok">Would submit now.</div>'; }, 500);
   }
   email.addEventListener('animationstart', function (e) { if (e.animationName === 'onAutoFillStart') autofilled('-webkit-autofill style'); });
+  var keysAtLastInput = 0, lenAtLastInput = 0;
   email.addEventListener('input', function (e) {
     log('input event inputType=' + (e.inputType || '(none)') + ' length=' + email.value.length + ' keys=' + keydowns);
+    // Fourth pattern (iPhone Safari and Chrome, run 1c/1): a suggestion tap
+    // deletes to empty, then inserts the whole address, with no keystroke.
+    var noKey = keydowns === keysAtLastInput, jump = email.value.length - lenAtLastInput;
+    keysAtLastInput = keydowns; lenAtLastInput = email.value.length;
     if (e.inputType === 'insertReplacementText' || !e.inputType || (keydowns === 0 && email.value.length > 3)) autofilled('input ' + (e.inputType || 'no inputType'));
+    else if (noKey && jump > 2 && email.value.indexOf('@') > 0) autofilled('whole value inserted with no keystroke');
   });
   email.addEventListener('change', function () { log('change event length=' + email.value.length); });
   document.querySelectorAll('[data-obs]').forEach(function (b) { b.addEventListener('click', function () { log('OBSERVED: ' + b.dataset.obs); }); });
   document.getElementById('reset').addEventListener('click', function () {
     clearTimeout(timer); email.value = ''; email.blur(); pending.textContent = '';
-    keydowns = 0; tapAt = null; autofillSeen = false; run++; log('--- reset ---');
+    keydowns = 0; keysAtLastInput = 0; lenAtLastInput = 0; tapAt = null; autofillSeen = false; run++; log('--- reset ---');
   });
   document.getElementById('copy').addEventListener('click', function () {
     var text = lines.join('\n');
